@@ -413,10 +413,15 @@ class ZumaGame:
         if self.state =="levels":
             self._draw_levels_menu()
             return
+        elif self.state == "rules":
+            self._draw_rules()
+            return
 
         #Игровой процесс
         path_line = [coord for i, p in enumerate(self.path_pts) for coord in p if i % 4 == 0]
-        self.canvas.create_line(path_line, fill="#2a2a35", width=4, smooth=True)
+        self.canvas.create_line(path_line, fill="#1a1a2e", width=8, smooth=True, tags="game_layer")
+        self.canvas.create_line(path_line, fill="#16213e", width=5, smooth=True, tags="game_layer")
+        self.canvas.create_line(path_line, fill="#0f3460", width=2, smooth=True, tags="game_layer")
 
         for ball in self.chain:
             x, y = self._get_pos_from_dist(ball.visual_dist)
@@ -449,11 +454,36 @@ class ZumaGame:
         elif self.state == "victory":
             self._draw_overlay("YOU WON ALL LEVELS!", "#3CB44B", f"Final Score: {self.score} | Press R for Menu")
 
+        # Если пауза - рисуем поверх игры
+        if self.state == "paused":
+            self._draw_pause()
+
+        self.glow_intensity *= 0.95
+
+    def _draw_pause(self):
+        """Отрисовка меню паузы"""
+        # Затемнение фона
+        self.canvas.create_rectangle(0, 0, 800, 600, fill="#000000", stipple="gray50", tags="pause_layer")
+
+        # Заголовок
+        self.canvas.create_text(400, 180, text="ПАУЗА", fill="#ffffff", font=("Segoe UI", 48, "bold"), tags="pause_layer")
+
+        # Кнопки
+        for key, (x1, y1, x2, y2, text) in self.pause_buttons.items():
+            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="pause_layer")
+
+        # Подсказка
+        self.canvas.create_text(400, 420, text="Нажмите 'P' чтобы продолжить", fill="#888", font=("Segoe UI", 12), tags="pause_layer")
 
     def _draw_menu(self):
         '''Главное меню'''
-        self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
-        self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
+        self.canvas.create_text(400, 100, text="ZUMA", fill="#000000", font=("Segoe UI", 48, "bold"), tags="menu_layer")
+        self.canvas.create_text(400, 170, text="Главное меню:", fill="#000000", font=("Segoe UI", 18), tags="menu_layer")
+
+        for key, (x1, y1, x2, y2, text) in self.menu_buttons.items():
+            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
 
     def _draw_levels_menu(self):
         self.canvas.create_text(400, 80, text="ВЫБОР УРОВНЯ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
