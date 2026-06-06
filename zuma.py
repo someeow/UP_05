@@ -194,6 +194,10 @@ class ZumaGame:
         self._draw()
         self.root.after(16, self._tick)
 
+    def _spawn_explosion(self, x, y, color, count=15):
+        for _ in range(count):
+            self.particles.append(Particle(x, y, color))
+
     def _update_physics(self):
         for ball in self.chain:
             ball.dist += self.speed
@@ -284,6 +288,52 @@ class ZumaGame:
         for i in range(15):
             self.chain.append(Ball(random.choice(self.colors_pool), -i * BALL_SPACING))
         self.chain.sort(key=lambda b: b.dist)
+
+    def _hex_to_rgb(self, hex_color):
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    def _draw_gradient_ball(self, x, y, radius, color, outline=True, tags="game_layer"):
+        r, g, b = self._hex_to_rgb(color)
+
+        glow_factor = min(1.0, self.glow_intensity)
+        if glow_factor > 0.1:
+            for i in range(3, 0, -1):
+                gr = int(r * 0.4)
+                gg = int(g * 0.4)
+                gb = int(b * 0.4)
+                glow_color = f'#{gr:02x}{gg:02x}{gb:02x}'
+                self.canvas.create_oval(
+                    x - radius - i * 3, y - radius - i * 3,
+                    x + radius + i * 3, y + radius + i * 3,
+                    fill=glow_color, outline="", tags=tags
+                )
+
+        for i in range(5, 0, -1):
+            ratio = i / 5
+            nr = int(r * (0.6 + 0.4 * ratio))
+            ng = int(g * (0.6 + 0.4 * ratio))
+            nb = int(b * (0.6 + 0.4 * ratio))
+            grad_color = f'#{nr:02x}{ng:02x}{nb:02x}'
+            self.canvas.create_oval(
+                x - radius + i, y - radius + i,
+                x + radius - i, y + radius - i,
+                fill=grad_color, outline="", tags=tags
+            )
+
+        self.canvas.create_oval(
+            x - radius // 3, y - radius // 3,
+            x - radius // 6, y - radius // 6,
+            fill="#ffffff", outline="", tags=tags
+        )
+
+        if outline:
+            dark_color = f'#{max(0, r-40):02x}{max(0, g-40):02x}{max(0, b-40):02x}'
+            self.canvas.create_oval(
+                x - radius, y - radius,
+                x + radius, y + radius,
+                outline=dark_color, width=2, tags=tags
+            )
 
     def _draw(self):
         self.canvas.delete("all")
