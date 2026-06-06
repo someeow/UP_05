@@ -439,10 +439,8 @@ class ZumaGame:
         self.canvas.create_text(fx - 30, fy - 52, text="СЛЕД.", fill="#533483", font=("Segoe UI", 9, "bold"), tags="game_layer")
 
         lvl = LEVELS[self.current_level_idx]
-        self.canvas.create_text(20, 20, text=f"LVL {lvl['id']}  |  Score: {self.score}/{lvl['target_score']}",
-                                anchor="nw", fill="#eee", font=("Consolas", 14, "bold"))
-        self.canvas.create_text(780, 20, text=f"Diff: {DIFFICULTY[self.difficulty]['label']}",
-                                anchor="ne", fill="#aaa", font=("Consolas", 12))
+        self.canvas.create_text(20, 20, text=f"LVL {lvl['id']}  |  Score: {self.score}/{lvl['target_score']}", anchor="nw", fill="#eee", font=("Consolas", 14, "bold"))
+        self.canvas.create_text(780, 20, text=f"Diff: {DIFFICULTY[self.difficulty]['label']}", anchor="ne", fill="#aaa", font=("Consolas", 12))
 
         if self.state == "level_complete":
             self._draw_overlay(f"LEVEL {self.current_level_idx} COMPLETE!", "#4363D8", "Press SPACE for Next Level")
@@ -450,6 +448,50 @@ class ZumaGame:
             self._draw_overlay("GAME OVER", "#E6192B", "Press R to Restart")
         elif self.state == "victory":
             self._draw_overlay("YOU WON ALL LEVELS!", "#3CB44B", f"Final Score: {self.score} | Press R for Menu")
+
+
+    def _draw_menu(self):
+        '''Главное меню'''
+        self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
+        self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
+
+    def _draw_levels_menu(self):
+        self.canvas.create_text(400, 80, text="ВЫБОР УРОВНЯ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
+        # Показываем текущую сложность (статично)
+        self.canvas.create_text(400, 130, text=f"Сложность: {DIFFICULTY[self.difficulty]['label']}", fill="#666666", font=("Segoe UI", 14), tags="menu_layer")
+
+        for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
+            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
+
+        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
+        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
+
+    def _draw_rules(self):
+        self.canvas.create_text(400, 60, text="ПРАВИЛА ИГРЫ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
+
+        rules_text = """
+        1. Стреляйте цветными шарами из лягушки
+
+        2. Собирайте 3 или более шара одного цвета
+
+        3. Не дайте шарам достичь центра
+
+        4. Набирайте очки для прохождения уровня
+
+        5. Цепочки исчезновений дают бонусы
+
+        Управление:
+        • Мышь - прицеливание
+        • ЛКМ - выстрел
+        • P - Пауза
+        • R - Рестарт
+        """
+
+        self.canvas.create_text(400, 280, text=rules_text, fill="#000000", font=("Segoe UI", 12), tags="menu_layer", justify="center")
+
+        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
+        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
 
     def _draw_frog(self):
         fx, fy = FROG_POS
@@ -476,29 +518,48 @@ class ZumaGame:
             self.canvas.create_oval(ex - 3, ey - 3, ex + 3, ey + 3, fill="#0a0a0f", tags="game_layer")
             self.canvas.create_oval(ex - 2, ey - 2, ex - 0.5, ey - 0.5, fill="#fff", tags="game_layer")
 
-
-def _draw_menu(self):
-        '''Главное меню'''
-        self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
-        self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
-
-    def _draw_levels_menu(self):
-        self.canvas.create_text(400, 80, text="ВЫБОР УРОВНЯ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
-        # Показываем текущую сложность (статично)
-        self.canvas.create_text(400, 130, text=f"Сложность: {DIFFICULTY[self.difficulty]['label']}", fill="#666666", font=("Segoe UI", 14), tags="menu_layer")
-
-        for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
-            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
-            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
-
-        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
-        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
-
-
     def _draw_overlay(self, title, color, sub):
         self.canvas.create_rectangle(0, 0, 800, 600, fill="#000000")
         self.canvas.create_text(400, 250, text=title, fill=color, font=("Segoe UI", 42, "bold"))
         self.canvas.create_text(400, 320, text=sub, fill="#ccc", font=("Segoe UI", 18))
+
+    def _check_button_click(self, x, y):
+        if self.state == "menu":
+            for key, (x1, y1, x2, y2, text) in self.menu_buttons.items():
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    if key == "play":
+                        self._start_game()
+                    elif key == "levels":
+                        self.state = "levels"
+                    elif key == "rules":
+                        self.state = "rules"
+                    elif key == "exit":
+                        self.on_close()
+                    return True
+        elif self.state == "levels":
+            if 280 <= x <= 520 and 500 <= y <= 550:
+                self.state = "menu"
+                return True
+            for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    self.current_level_idx = key - 1
+                    self._start_game()
+                    return True
+        elif self.state == "rules":
+            if 280 <= x <= 520 and 500 <= y <= 550:
+                self.state = "menu"
+                return True
+        elif self.state == "paused":
+            for key, (x1, y1, x2, y2, text) in self.pause_buttons.items():
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    if key == "resume":
+                        self.state = "playing"
+                    elif key == "menu":
+                        self.state = "menu"
+                        self.score = 0
+                        self.current_level_idx = 0
+                    return True
+        return False
 
     def on_mouse_move(self, event):
         dx = event.x - FROG_POS[0]
@@ -506,15 +567,22 @@ def _draw_menu(self):
         self.frog_angle = math.atan2(dy, dx)
 
     def on_click(self, event):
-        if self.state != "playing" or self.projectile:
-            return
-        rad = self.frog_angle
-        self.projectile = {
-            "x": FROG_POS[0], "y": FROG_POS[1],
-            "dx": math.cos(rad) * PROJECTILE_SPEED,
-            "dy": math.sin(rad) * PROJECTILE_SPEED,
-            "color": self.current_ball
-        }
+        x, y = event.x, event.y
+
+        if self.state in ("menu", "levels", "rules", "paused"):
+            if self._check_button_click(x, y):
+                return
+
+        if self.state == "playing":
+            if self.projectile:
+                return
+            rad = self.frog_angle
+            self.projectile = {
+                "x": FROG_POS[0], "y": FROG_POS[1],
+                "dx": math.cos(rad) * PROJECTILE_SPEED,
+                "dy": math.sin(rad) * PROJECTILE_SPEED,
+                "color": self.current_ball
+            }
         # 🔥 Механика оригинала: шар расходуется сразу при выстреле.
         # Если он улетит в пустоту или врежется в цепь - он уже "потрачен".
         self.current_ball = self.next_ball
