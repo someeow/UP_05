@@ -252,7 +252,7 @@ class ZumaGame:
             p.vy *= 0.98
             if p.life <= 0:
                 self.particles.remove(p)
-                
+
     def _spawn_explosion(self, x, y, color, count=15):
         for _ in range(count):
             self.particles.append(Particle(x, y, color))
@@ -265,7 +265,6 @@ class ZumaGame:
         if self.projectile:
             self.projectile["x"] += self.projectile["dx"]
             self.projectile["y"] += self.projectile["dy"]
-            # 🔥 Если улетел за границы экрана -> считается "промахом в пустоту"
             if not (0 <= self.projectile["x"] <= 800 and 0 <= self.projectile["y"] <= 600):
                 self.projectile = None
 
@@ -311,8 +310,13 @@ class ZumaGame:
                     j += 1
                 count = j - i
                 if count >= 3:
+                    for k in range(i, j):
+                        pos = self._get_pos_from_dist(self.chain[k].visual_dist)
+                        self._spawn_explosion(pos[0], pos[1], c, 8)
+
                     pts = self._calc_zuma_score(count) * combo
                     self.score += pts
+                    self.glow_intensity = min(1.0, self.glow_intensity + 0.3)
                     del self.chain[i:j]
                     self._recalc_spacing(i)
                     changed = True
