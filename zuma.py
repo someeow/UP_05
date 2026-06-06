@@ -444,15 +444,21 @@ class ZumaGame:
         self.canvas.create_text(fx - 30, fy - 52, text="СЛЕД.", fill="#533483", font=("Segoe UI", 9, "bold"), tags="game_layer")
 
         lvl = LEVELS[self.current_level_idx]
-        self.canvas.create_text(20, 20, text=f"LVL {lvl['id']}  |  Score: {self.score}/{lvl['target_score']}", anchor="nw", fill="#eee", font=("Consolas", 14, "bold"))
-        self.canvas.create_text(780, 20, text=f"Diff: {DIFFICULTY[self.difficulty]['label']}", anchor="ne", fill="#aaa", font=("Consolas", 12))
+        self.canvas.create_rectangle(10, 10, 280, 55, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
+        self.canvas.create_text(20, 20, text=f"УРОВЕНЬ {lvl['id']}", anchor="nw", fill="#e94560", font=("Segoe UI", 12, "bold"), tags="game_layer")
+        self.canvas.create_text(20, 38, text=f"Очки: {self.score} / {lvl['target_score']}", anchor="nw", fill="#fff", font=("Segoe UI", 11), tags="game_layer")
+
+        # 🔒 Сложность отображается, но не является кнопкой (некликабельна)
+        diff_text = DIFFICULTY[self.difficulty]['label']
+        self.canvas.create_rectangle(620, 10, 790, 45, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
+        self.canvas.create_text(705, 27, text=f"Сложность: {diff_text}", fill="#888", font=("Segoe UI", 11, "bold"), tags="game_layer")
 
         if self.state == "level_complete":
-            self._draw_overlay(f"LEVEL {self.current_level_idx} COMPLETE!", "#4363D8", "Press SPACE for Next Level")
+            self._draw_overlay(f"УРОВЕНЬ {self.current_level_idx} ПРОЙДЕН!", "#00d9ff", "Нажмите ПРОБЕЛ для следующего уровня")
         elif self.state == "game_over":
-            self._draw_overlay("GAME OVER", "#E6192B", "Press R to Restart")
+            self._draw_overlay("ИГРА ОКОНЧЕНА", "#e94560", "Нажмите R для рестарта")
         elif self.state == "victory":
-            self._draw_overlay("YOU WON ALL LEVELS!", "#3CB44B", f"Final Score: {self.score} | Press R for Menu")
+            self._draw_overlay("ПОБЕДА!", "#00ff88", f"Итоговый счёт: {self.score} | Нажмите R для меню")
 
         # Если пауза - рисуем поверх игры
         if self.state == "paused":
@@ -477,7 +483,6 @@ class ZumaGame:
         self.canvas.create_text(400, 420, text="Нажмите 'P' чтобы продолжить", fill="#888", font=("Segoe UI", 12), tags="pause_layer")
 
     def _draw_menu(self):
-        '''Главное меню'''
         self.canvas.create_text(400, 100, text="ZUMA", fill="#000000", font=("Segoe UI", 48, "bold"), tags="menu_layer")
         self.canvas.create_text(400, 170, text="Главное меню:", fill="#000000", font=("Segoe UI", 18), tags="menu_layer")
 
@@ -592,9 +597,14 @@ class ZumaGame:
         return False
 
     def on_mouse_move(self, event):
-        dx = event.x - FROG_POS[0]
-        dy = event.y - FROG_POS[1]
-        self.frog_angle = math.atan2(dy, dx)
+        self.mouse_x = event.x
+        self.mouse_y = event.y
+
+        # Если не пауза, лягушка следит за мышью
+        if self.state == "playing":
+            dx = event.x - FROG_POS[0]
+            dy = event.y - FROG_POS[1]
+            self.frog_angle = math.atan2(dy, dx)
 
     def on_click(self, event):
         x, y = event.x, event.y
@@ -613,21 +623,20 @@ class ZumaGame:
                 "dy": math.sin(rad) * PROJECTILE_SPEED,
                 "color": self.current_ball
             }
-        # 🔥 Механика оригинала: шар расходуется сразу при выстреле.
-        # Если он улетит в пустоту или врежется в цепь - он уже "потрачен".
-        self.current_ball = self.next_ball
-        self.next_ball = random.choice(self.colors_pool)
+            self.current_ball = self.next_ball
+            self.next_ball = random.choice(self.colors_pool)
 
     def on_key(self, event):
         key = event.keysym.lower()
-        if self.state == "menu":
-            if key in ("1", "2", "3"):
-                diff_keys = list(DIFFICULTY.keys())
-                idx = int(key) - 1
-                if 0 <= idx < len(diff_keys):
-                    self.difficulty = diff_keys[idx]
-                    self._apply_difficulty()
-                    self._start_game()
+
+        if key == "p":
+            # Переключение паузы
+            if self.state == "playing":
+                self.state = "paused"
+            elif self.state == "paused":
+                self.state = "playing"
+            return
+
         elif self.state == "playing":
             if key == "r":
                 self._reset_game()
@@ -645,8 +654,10 @@ class ZumaGame:
         self.state = "playing"
         self._generate_path()
         self._spawn_chain()
+        self._setup_background()
         self.current_ball = random.choice(self.colors_pool)
         self.next_ball = random.choice(self.colors_pool)
+        self.particles.clear()
 
     def _reset_game(self):
         self.score = 0
@@ -656,7 +667,6 @@ class ZumaGame:
     def on_close(self):
         self.root.destroy()
         sys.exit()
-
 
 if __name__ == "__main__":
     ZumaGame()
