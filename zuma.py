@@ -33,7 +33,6 @@ PROJECTILE_SPEED = 7.5
 BASE_CHAIN_SPEED = 0.15
 ROLLBACK_LERP = 0.18
 
-
 class Ball:
     def __init__(self, color, dist):
         self.color = color
@@ -91,26 +90,29 @@ class ZumaGame:
         self.mouse_x = 0
         self.mouse_y = 0
 
+        #Кнопки меню
+        self.menu_buttons = {
+            "play": (280, 220, 520, 270, "Играть"),
+            "levels": (280, 290, 520, 340, "Уровни"),
+            "rules": (280, 360, 520, 410, "Правила"),
+            "exit": (280, 430, 520, 480, "Выход")
+        }
+
+        self.level_buttons = {}
+        for i in range(4):
+            y_start = 180 + i * 70
+            self.level_buttons[i + 1] = (280, y_start, 520, y_start + 50, f'Уровень {i + 1}')
+
+         # Кнопки паузы
+        self.pause_buttons = {
+            "resume": (280, 260, 520, 310, "Продолжить"),
+            "menu": (280, 330, 520, 380, "В главное меню")
+        }
+
         self._apply_difficulty()
         self._generate_path()
         self._start_loop()
         self.root.mainloop()
-
-        self.menu_buttons = {
-        "play": (280,220,590,270, "Играть")
-        "levels": (280, 290, 590, 340, "Уровень")
-        "rules": (280, 360, 590, 410, "Правила")
-        "exit": (280, 430, 590, 480, "Выход")
-    }
-
-        self.level_buttons = {}
-        for i in range(4):
-            y_start=180+i*70
-            self.level_buttons[i+1] = (280,y_start,520,y_start+50,f'Уровень {i+1}')
-
-            self._apply_difficulty()
-            self._generate_path()
-
 
     def _apply_difficulty(self):
         cfg = DIFFICULTY[self.difficulty]
@@ -174,10 +176,21 @@ class ZumaGame:
         self._tick()
 
     def _tick(self):
+        # Если пауза - только рисуем, не обновляем физику
+        if self.state == "paused":
+            self._draw()
+            self.root.after(16, self._tick)
+            return
+
         if self.state == "playing":
             self._update_physics()
             self._check_collisions()
             self._check_win_lose()
+
+        self.frog_breathe += 0.05
+        self._update_particles()
+        if self.state == "playing":
+            self._update_background()
         self._draw()
         self.root.after(16, self._tick)
 
@@ -328,21 +341,27 @@ class ZumaGame:
             self.canvas.create_oval(ex - 4, ey - 4, ex + 4, ey + 4, fill="white")
             self.canvas.create_oval(ex - 2, ey - 2, ex + 2, ey + 2, fill="black")
 
-    def _draw_button(self,x1,y1,x2,y2,text,hover=False,tags="menu_layer")
-
+    def _draw_button(self, x1, y1, x2, y2, text, hover=False, tags="menu_layer"):
+        fill_color = "#f0f0f0" if hover else "#ffffff"
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="#000000", width=2, tags=tags)
+        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=text, fill="#000000", font=("Segoe UI", 14), tags=tags)
 
     def _draw_menu(self):
         '''Главное меню'''
         self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
         self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
 
-    def _draaw_levels_menu(self):
-        '''Меню выбора уровней'''
-        self.canvas.create_text(400,80,text="Выбор уровня",fill="#FFFFFF")
-        self.canvas.create_text(400, 130, text="Сложность", {DIFFICULTY[self.difficulty]['label']}", fill="#FFFFFF")
+    def _draw_levels_menu(self):
+        self.canvas.create_text(400, 80, text="ВЫБОР УРОВНЯ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
+        # Показываем текущую сложность (статично)
+        self.canvas.create_text(400, 130, text=f"Сложность: {DIFFICULTY[self.difficulty]['label']}", fill="#666666", font=("Segoe UI", 14), tags="menu_layer")
 
-        self.canvas.create_rectangle(280,500,520,550, fil="#FFFFFF")
-        self.canvas.create_text(400,525,text="Назад", fill="#FFFFFF")
+        for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
+            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
+
+        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
+        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
 
 
     def _draw_overlay(self, title, color, sub):
