@@ -18,6 +18,13 @@ LEVELS = [
     {"id": 4, "target_score": 25000, "chain_length": 65, "rotations": 3.5},
 ]
 
+LEVEL_THEMES = [
+    {"name": "Cosmic",   "base": "#0b0b1a", "accent": "#00d9ff", "particles": 45, "style": "stars"},
+    {"name": "Forest",   "base": "#0a120a", "accent": "#00ff88", "particles": 35, "style": "spores"},
+    {"name": "Ember",    "base": "#120808", "accent": "#ff5500", "particles": 40, "style": "embers"},
+    {"name": "Abyss",    "base": "#080a18", "accent": "#4488ff", "particles": 50, "style": "bubbles"}
+]
+
 COLORS = ["#E6192B", "#3CB44B", "#4363D8", "#F58231", "#911EB4", "#42D4F4", "#F0E442"]
 FROG_POS = (400.0, 300.0)
 BALL_RADIUS = 12
