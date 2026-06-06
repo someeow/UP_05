@@ -434,8 +434,9 @@ class ZumaGame:
             self._draw_gradient_ball(self.projectile["x"], self.projectile["y"], BALL_RADIUS, self.projectile["color"], tags="game_layer")
 
         fx, fy = FROG_POS
-        self.canvas.create_oval(fx - 35, fy - 35, fx - 25, fy - 25, fill=self.next_ball)
-        self.canvas.create_text(fx - 30, fy - 48, text="NEXT", fill="#888", font=("Consolas", 8))
+        self.canvas.create_oval(fx - 40, fy - 40, fx - 20, fy - 20, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
+        self._draw_gradient_ball(fx - 30, fy - 30, 8, self.next_ball, tags="game_layer")
+        self.canvas.create_text(fx - 30, fy - 52, text="СЛЕД.", fill="#533483", font=("Segoe UI", 9, "bold"), tags="game_layer")
 
         lvl = LEVELS[self.current_level_idx]
         self.canvas.create_text(20, 20, text=f"LVL {lvl['id']}  |  Score: {self.score}/{lvl['target_score']}",
@@ -453,18 +454,30 @@ class ZumaGame:
     def _draw_frog(self):
         fx, fy = FROG_POS
         ang = self.frog_angle
-        self.canvas.create_oval(fx - 20, fy - 20, fx + 20, fy + 20, fill="#228B22", outline="#004400", width=2)
-        mx = fx + math.cos(ang) * 24
-        my = fy + math.sin(ang) * 24
-        self.canvas.create_oval(mx - 8, my - 8, mx + 8, my + 8, fill=self.current_ball, outline="")
-        for off in [-0.5, 0.5]:
-            ex = fx + math.cos(ang + off) * 12
-            ey = fy + math.sin(ang + off) * 12
-            self.canvas.create_oval(ex - 4, ey - 4, ex + 4, ey + 4, fill="white")
-            self.canvas.create_oval(ex - 2, ey - 2, ex + 2, ey + 2, fill="black")
+
+        breathe_scale = 1 + math.sin(self.frog_breathe) * 0.03
+
+        self.canvas.create_oval(fx - 25, fy + 18, fx + 25, fy + 28, fill="#000000", outline="", tags="game_layer")
+
+        body_size = 22 * breathe_scale
+        self.canvas.create_oval(fx - body_size, fy - body_size, fx + body_size, fy + body_size, fill="#2d6a4f", outline="#1b4332", width=3, tags="game_layer")
+
+        self.canvas.create_oval(fx - 14, fy - 10, fx + 14, fy + 16, fill="#40916c", outline="", tags="game_layer")
+
+        mx = fx + math.cos(ang) * 26
+        my = fy + math.sin(ang) * 26
+        self.canvas.create_oval(mx - 10, my - 10, mx + 10, my + 10, fill="#1b4332", outline="#0d2b1d", width=2, tags="game_layer")
+        self._draw_gradient_ball(mx, my, 7, self.current_ball, tags="game_layer")
+
+        for off in [-0.6, 0.6]:
+            ex = fx + math.cos(ang + off) * 14
+            ey = fy + math.sin(ang + off) * 14
+            self.canvas.create_oval(ex - 6, ey - 6, ex + 6, ey + 6, fill="#fff", outline="#1b4332", width=1, tags="game_layer")
+            self.canvas.create_oval(ex - 3, ey - 3, ex + 3, ey + 3, fill="#0a0a0f", tags="game_layer")
+            self.canvas.create_oval(ex - 2, ey - 2, ex - 0.5, ey - 0.5, fill="#fff", tags="game_layer")
 
 
-    def _draw_menu(self):
+def _draw_menu(self):
         '''Главное меню'''
         self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
         self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
