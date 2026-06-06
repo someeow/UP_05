@@ -344,6 +344,7 @@ class ZumaGame:
                 else:
                     self.state = "level_complete"
                     self._generate_path()
+                    self._setup_background()
             else:
                 self._spawn_wave()
 
@@ -398,9 +399,13 @@ class ZumaGame:
                 outline=dark_color, width=2, tags=tags
             )
 
+    def _draw_button(self, x1, y1, x2, y2, text, hover=False, tags="menu_layer"):
+        fill_color = "#f0f0f0" if hover else "#ffffff"
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="#000000", width=2, tags=tags)
+        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=text, fill="#000000", font=("Segoe UI", 14), tags=tags)
+
     def _draw(self):
         self.canvas.delete("all")
-        self.canvas.create_rectangle(0, 0, 800, 600, fill="#111115")
 
         if self.state == "menu":
             self._draw_menu()
@@ -409,20 +414,24 @@ class ZumaGame:
             self._draw_levels_menu()
             return
 
+        #Игровой процесс
         path_line = [coord for i, p in enumerate(self.path_pts) for coord in p if i % 4 == 0]
         self.canvas.create_line(path_line, fill="#2a2a35", width=4, smooth=True)
 
         for ball in self.chain:
             x, y = self._get_pos_from_dist(ball.visual_dist)
-            self.canvas.create_oval(x - BALL_RADIUS, y - BALL_RADIUS, x + BALL_RADIUS, y + BALL_RADIUS,
-                                    fill=ball.color, outline="")
+            self._draw_gradient_ball(x, y, BALL_RADIUS, ball.color, tags="game_layer")
+
+        for p in self.particles:
+            r, g, b = self._hex_to_rgb(p.color)
+            color = f'#{r:02x}{g:02x}{b:02x}'
+            size = int(4 * p.life)
+            self.canvas.create_oval(p.x - size, p.y - size, p.x + size, p.y + size, fill=color, outline="", tags="game_layer")
 
         self._draw_frog()
 
         if self.projectile:
-            self.canvas.create_oval(self.projectile["x"] - BALL_RADIUS, self.projectile["y"] - BALL_RADIUS,
-                                    self.projectile["x"] + BALL_RADIUS, self.projectile["y"] + BALL_RADIUS,
-                                    fill=self.projectile["color"], outline="white", width=2)
+            self._draw_gradient_ball(self.projectile["x"], self.projectile["y"], BALL_RADIUS, self.projectile["color"], tags="game_layer")
 
         fx, fy = FROG_POS
         self.canvas.create_oval(fx - 35, fy - 35, fx - 25, fy - 25, fill=self.next_ball)
@@ -454,10 +463,6 @@ class ZumaGame:
             self.canvas.create_oval(ex - 4, ey - 4, ex + 4, ey + 4, fill="white")
             self.canvas.create_oval(ex - 2, ey - 2, ex + 2, ey + 2, fill="black")
 
-    def _draw_button(self, x1, y1, x2, y2, text, hover=False, tags="menu_layer"):
-        fill_color = "#f0f0f0" if hover else "#ffffff"
-        self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="#000000", width=2, tags=tags)
-        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=text, fill="#000000", font=("Segoe UI", 14), tags=tags)
 
     def _draw_menu(self):
         '''Главное меню'''
