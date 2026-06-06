@@ -3,9 +3,8 @@ import math
 import random
 import sys
 
-# ==========================================
 # 🎮 КОНФИГУРАЦИЯ
-# ==========================================
+
 DIFFICULTY = {
     "easy": {"speed_mult": 0.7, "max_colors": 4, "label": "Easy"},
     "medium": {"speed_mult": 1.0, "max_colors": 5, "label": "Medium"},
@@ -34,11 +33,22 @@ class Ball:
         self.dist = dist
         self.visual_dist = dist
 
+class Particle:
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.color = color
+        angle = random.uniform(0, math.pi * 2)
+        speed = random.uniform(1, 4)
+        self.vx = math.cos(angle) * speed
+        self.vy = math.sin(angle) * speed
+        self.life = 1.0
+        self.decay = random.uniform(0.02, 0.04)
 
 class ZumaGame:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Zuma: Fixed Physics & Void Shots")
+        self.root.title("Zuma")
         self.root.geometry("800x600")
         self.root.resizable(False, False)
         self.root.configure(bg="#111115")
@@ -51,6 +61,7 @@ class ZumaGame:
         self.canvas.bind("<Button-1>", self.on_click)
         self.root.bind("<Key>", self.on_key)
 
+        #состояния
         self.state = "menu"
         self.difficulty = "medium"
         self.current_level_idx = 0
@@ -65,11 +76,34 @@ class ZumaGame:
         self.next_ball = random.choice(COLORS)
         self.speed = BASE_CHAIN_SPEED
         self.colors_pool = []
+        self.particles = []
+        self.frog_breathe = 0
+        self.glow_intensity = 0
+        self.bg_particles = []
+        self.current_theme = None
+        self.mouse_x = 0
+        self.mouse_y = 0
 
         self._apply_difficulty()
         self._generate_path()
         self._start_loop()
         self.root.mainloop()
+
+        self.menu_buttons = {
+        "play": (280,220,590,270, "Играть")
+        "levels": (280, 290, 590, 340, "Уровень")
+        "rules": (280, 360, 590, 410, "Правила")
+        "exit": (280, 430, 590, 480, "Выход")
+    }
+
+        self.level_buttons = {}
+        for i in range(4):
+            y_start=180+i*70
+            self.level_buttons[i+1] = (280,y_start,520,y_start+50,f'Уровень {i+1}')
+
+            self._apply_difficulty()
+            self._generate_path()
+
 
     def _apply_difficulty(self):
         cfg = DIFFICULTY[self.difficulty]
@@ -238,6 +272,9 @@ class ZumaGame:
         if self.state == "menu":
             self._draw_menu()
             return
+        if self.state =="levels":
+            self._draw_levels_menu()
+            return
 
         path_line = [coord for i, p in enumerate(self.path_pts) for coord in p if i % 4 == 0]
         self.canvas.create_line(path_line, fill="#2a2a35", width=4, smooth=True)
@@ -284,14 +321,22 @@ class ZumaGame:
             self.canvas.create_oval(ex - 4, ey - 4, ex + 4, ey + 4, fill="white")
             self.canvas.create_oval(ex - 2, ey - 2, ex + 2, ey + 2, fill="black")
 
+    def _draw_button(self,x1,y1,x2,y2,text,hover=False,tags="menu_layer")
+
+
     def _draw_menu(self):
-        self.canvas.create_text(400, 150, text="ZUMA: VOID SHOTS", fill="#fff", font=("Segoe UI", 36, "bold"))
-        self.canvas.create_text(400, 220, text="Select Difficulty", fill="#aaa", font=("Segoe UI", 18))
-        y = 280
-        for diff, cfg in DIFFICULTY.items():
-            self.canvas.create_text(400, y, text=f"[ {cfg['label']} ]", fill="#4363D8", font=("Consolas", 20, "bold"))
-            y += 40
-        self.canvas.create_text(400, 450, text="Press 1, 2 or 3 to start", fill="#888", font=("Consolas", 14))
+        '''Главное меню'''
+        self.canvas.create_text(400,100,text="ZUMA", fill="#FFFFFF")
+        self.canvas.create_text(400, 170, text="Главное меню:", fill="#FFFFFFF")
+
+    def _draaw_levels_menu(self):
+        '''Меню выбора уровней'''
+        self.canvas.create_text(400,80,text="Выбор уровня",fill="#FFFFFF")
+        self.canvas.create_text(400, 130, text="Сложность", {DIFFICULTY[self.difficulty]['label']}", fill="#FFFFFF")
+
+        self.canvas.create_rectangle(280,500,520,550, fil="#FFFFFF")
+        self.canvas.create_text(400,525,text="Назад", fill="#FFFFFF")
+
 
     def _draw_overlay(self, title, color, sub):
         self.canvas.create_rectangle(0, 0, 800, 600, fill="#000000")
