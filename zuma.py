@@ -1,16 +1,24 @@
-import tkinter as tk
+import tkinter as tk # графическая библиотека
 import math
 import random
-import sys
+import bisect #
+import sys # для корректного завершения программы
 
 # 🎮 КОНФИГУРАЦИЯ
 
+# словарь сложности настроек
+# speed_mult - множитель скорости шариков
+# max_colors - количество цветов на уровне
 DIFFICULTY = {
     "easy": {"speed_mult": 0.7, "max_colors": 4, "label": "Easy"},
     "medium": {"speed_mult": 1.0, "max_colors": 5, "label": "Medium"},
     "hard": {"speed_mult": 1.4, "max_colors": 6, "label": "Hard"}
 }
 
+# настройка уровней
+# target_score - очки для прохождения
+# chain_length - начальная длина цепочки
+# rotations - витки спирали
 LEVELS = [
     {"id": 1, "target_score": 4000, "chain_length": 25, "rotations": 2.0},
     {"id": 2, "target_score": 9000, "chain_length": 35, "rotations": 2.5},
@@ -18,54 +26,59 @@ LEVELS = [
     {"id": 4, "target_score": 25000, "chain_length": 65, "rotations": 3.5},
 ]
 
+# Темы уровней определяет: цвет фона, подсветки, количество фоновых частиц, тип эффектов
 LEVEL_THEMES = [
-    {"name": "Cosmic",   "base": "#0b0b1a", "accent": "#00d9ff", "particles": 45, "style": "stars"},
-    {"name": "Forest",   "base": "#0a120a", "accent": "#00ff88", "particles": 35, "style": "spores"},
-    {"name": "Ember",    "base": "#120808", "accent": "#ff5500", "particles": 40, "style": "embers"},
-    {"name": "Abyss",    "base": "#080a18", "accent": "#4488ff", "particles": 50, "style": "bubbles"}
+    {"name": "Cosmic",   "base": "#0b0b1a", "accent": "#00d9ff", "particles": 15, "style": "stars"},
+    {"name": "Forest",   "base": "#0a120a", "accent": "#00ff88", "particles": 15, "style": "spores"},
+    {"name": "Ember",    "base": "#120808", "accent": "#ff5500", "particles": 15, "style": "embers"},
+    {"name": "Abyss",    "base": "#080a18", "accent": "#4488ff", "particles": 15, "style": "bubbles"}
 ]
 
+# глобальные константы
 COLORS = ["#E6192B", "#3CB44B", "#4363D8", "#F58231", "#911EB4", "#42D4F4", "#F0E442"]
-FROG_POS = (400.0, 300.0)
-BALL_RADIUS = 12
-BALL_SPACING = BALL_RADIUS * 2 + 3
-PROJECTILE_SPEED = 7.5
-BASE_CHAIN_SPEED = 0.15
-ROLLBACK_LERP = 0.18
+FROG_POS = (400.0, 300.0) # координаты лягушки
+BALL_RADIUS = 13 # радиус шара
+BALL_SPACING = BALL_RADIUS * 2 + 3 # расстояние между шарами
+PROJECTILE_SPEED = 20.5 # скорость выстрела
+BASE_CHAIN_SPEED = 0.45 # скорость движения цепочки
+ROLLBACK_LERP = 0.6 # коэффициент сглаживания движения
 
+# описывает один шар
 class Ball:
     def __init__(self, color, dist):
-        self.color = color
-        self.dist = dist
-        self.visual_dist = dist
+        self.color = color # цвет
+        self.dist = dist # реальная позиция на пути
+        self.visual_dist = dist # позиция для плавной анимации
 
+# для взрывов
 class Particle:
     def __init__(self, x, y, color):
         self.x = x
         self.y = y
         self.color = color
-        angle = random.uniform(0, math.pi * 2)
-        speed = random.uniform(1, 4)
-        self.vx = math.cos(angle) * speed
+        angle = random.uniform(0, math.pi * 2) # случайное направление
+        speed = random.uniform(1, 4) # случайная скорость
+        self.vx = math.cos(angle) * speed #скорость по осям
         self.vy = math.sin(angle) * speed
-        self.life = 1.0
+        self.life = 1.0 # время жизни частицы
         self.decay = random.uniform(0.02, 0.04)
 
+# главный игровой класс
 class ZumaGame:
     def __init__(self):
-        self.root = tk.Tk()
+        self.root = tk.Tk() # создает окно
         self.root.title("Zuma")
         self.root.geometry("800x600")
         self.root.resizable(False, False)
-        self.root.configure(bg="#111115")
+        self.root.configure(bg="#008080") # исходный цвет меню
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-
-        self.canvas = tk.Canvas(self.root, width=800, height=600, bg="#111115", highlightthickness=0)
+        # холст для рисования
+        self.canvas = tk.Canvas(self.root, width=800, height=600, bg="#008080", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
-
-        self.canvas.bind("<Motion>", self.on_mouse_move)
-        self.canvas.bind("<Button-1>", self.on_click)
-        self.root.bind("<Key>", self.on_key)
+        # привязка событий
+        self.canvas.bind("<Motion>", self.on_mouse_move) # движения мыши
+        self.canvas.bind("<Button-1>", self.on_click) # ЛКМ
+        self.root.bind("<Key>", self.on_key) # клавиатура
 
         #состояния
         self.state = "menu"
@@ -110,7 +123,8 @@ class ZumaGame:
         }
 
         self._apply_difficulty()
-        self._generate_path()
+        self._generate_path() # создает спираль
+        self._setup_menu_background()
         self._start_loop()
         self.root.mainloop()
 
@@ -124,7 +138,7 @@ class ZumaGame:
             return
         lvl = LEVELS[self.current_level_idx]
         raw_pts = []
-        num_pts = 1500
+        num_pts = 450 # точки пути
         start_r, end_r = 290, 60
         total_rot = lvl["rotations"]
         start_angle = random.uniform(0, math.pi * 2)
@@ -143,19 +157,21 @@ class ZumaGame:
             self.path_cum_dist.append(self.path_cum_dist[-1] + math.hypot(dx, dy))
         self.path_total_len = self.path_cum_dist[-1]
 
+    # по расстоянию вдоль пути вычисляет координаты
     def _get_pos_from_dist(self, dist):
         if dist <= 0: return self.path_pts[0]
         if dist >= self.path_total_len: return self.path_pts[-1]
 
-        idx = 0
-        while idx < len(self.path_cum_dist) - 1 and self.path_cum_dist[idx + 1] < dist:
-            idx += 1
+        idx = bisect.bisect_left(self.path_cum_dist, dist) - 1
+        if idx < 0: idx = 0
 
         seg_len = self.path_cum_dist[idx + 1] - self.path_cum_dist[idx]
-        frac = (dist - self.path_cum_dist[idx]) / seg_len if seg_len > 0 else 0
+        if seg_len > 0: frac = (dist - self.path_cum_dist[idx]) / seg_len
+        else: frac = 0
         p1, p2 = self.path_pts[idx], self.path_pts[idx + 1]
         return (p1[0] + (p2[0] - p1[0]) * frac, p1[1] + (p2[1] - p1[1]) * frac)
 
+    # спавн цепочки
     def _spawn_chain(self):
         lvl = LEVELS[self.current_level_idx]
         self.chain.clear()
@@ -175,11 +191,13 @@ class ZumaGame:
     def _start_loop(self):
         self._tick()
 
+    # игровой цикл
+    # вызывает каждые:
     def _tick(self):
         # Если пауза - только рисуем, не обновляем физику
         if self.state == "paused":
             self._draw()
-            self.root.after(16, self._tick)
+            self.root.after(16, self._tick) # 16 мс примерно 60FPS
             return
 
         if self.state == "playing":
@@ -209,6 +227,11 @@ class ZumaGame:
             dark = f"#{max(0,br-15):02x}{max(0,bg-15):02x}{max(0,bb-15):02x}"
             self.canvas.create_oval(400-r, 300-r, 400+r, 300+r, outline=dark, width=4, tags="bg_layer")
 
+        path_line = [coord for i, p in enumerate(self.path_pts) for coord in p if i % 4 == 0]
+        self.canvas.create_line(path_line, fill="#1a1a2e", width=8, smooth=True, tags="bg_layer")
+        self.canvas.create_line(path_line, fill="#16213e", width=5, smooth=True, tags="bg_layer")
+        self.canvas.create_line(path_line, fill="#0f3460", width=2, smooth=True, tags="bg_layer")
+
         if theme["style"] == "stars":
             for _ in range(20):
                 x, y = random.uniform(0, 800), random.uniform(0, 600)
@@ -230,6 +253,13 @@ class ZumaGame:
 
             oid = self.canvas.create_oval(x - size, y - size, x + size, y + size, fill=dim_color, outline="", tags="bg_ambient")
             self.bg_particles.append({"id": oid, "x": x, "y": y, "vx": vx, "vy": vy, "size": size})
+
+    def _setup_menu_background(self):
+        self.canvas.delete("bg_layer")
+        self.canvas.delete("bg_ambient")
+
+        self.canvas.create_rectangle(0, 0, 800, 600, fill="#008080", outline="", tags="bg_layer")
+        self.bg_particles.clear()
 
     def _update_background(self):
         if not self.bg_particles: return
@@ -253,15 +283,18 @@ class ZumaGame:
             if p.life <= 0:
                 self.particles.remove(p)
 
-    def _spawn_explosion(self, x, y, color, count=15):
+    # количество частиц взрыва
+    def _spawn_explosion(self, x, y, color, count=6):
         for _ in range(count):
             self.particles.append(Particle(x, y, color))
 
+    # обновление физики
     def _update_physics(self):
         for ball in self.chain:
-            ball.dist += self.speed
+            ball.dist += self.speed # каждый шар продвигается вперед
         self.chain = [b for b in self.chain if b.dist < self.path_total_len - 20]
 
+        # обновление координат выстрела
         if self.projectile:
             self.projectile["x"] += self.projectile["dx"]
             self.projectile["y"] += self.projectile["dy"]
@@ -269,6 +302,7 @@ class ZumaGame:
                 self.projectile = None
 
         for ball in self.chain:
+            # сглаживание
             ball.visual_dist += (ball.dist - ball.visual_dist) * ROLLBACK_LERP
 
         self._recalc_spacing()
@@ -312,7 +346,7 @@ class ZumaGame:
                 if count >= 3:
                     for k in range(i, j):
                         pos = self._get_pos_from_dist(self.chain[k].visual_dist)
-                        self._spawn_explosion(pos[0], pos[1], c, 8)
+                        self._spawn_explosion(pos[0], pos[1], c, 4)
 
                     pts = self._calc_zuma_score(count) * combo
                     self.score += pts
@@ -361,8 +395,8 @@ class ZumaGame:
         r, g, b = self._hex_to_rgb(color)
 
         glow_factor = min(1.0, self.glow_intensity)
-        if glow_factor > 0.1:
-            for i in range(3, 0, -1):
+        if glow_factor > 0.5:
+            for i in range(1, 0, -1):
                 gr = int(r * 0.4)
                 gg = int(g * 0.4)
                 gb = int(b * 0.4)
@@ -373,7 +407,7 @@ class ZumaGame:
                     fill=glow_color, outline="", tags=tags
                 )
 
-        for i in range(5, 0, -1):
+        for i in range(2, 0, -1):
             ratio = i / 5
             nr = int(r * (0.6 + 0.4 * ratio))
             ng = int(g * (0.6 + 0.4 * ratio))
@@ -405,7 +439,9 @@ class ZumaGame:
         self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=text, fill="#000000", font=("Segoe UI", 14), tags=tags)
 
     def _draw(self):
-        self.canvas.delete("all")
+        self.canvas.delete("game_layer")
+        self.canvas.delete("pause_layer")
+        self.canvas.delete("menu_layer")
 
         if self.state == "menu":
             self._draw_menu()
@@ -418,10 +454,6 @@ class ZumaGame:
             return
 
         #Игровой процесс
-        path_line = [coord for i, p in enumerate(self.path_pts) for coord in p if i % 4 == 0]
-        self.canvas.create_line(path_line, fill="#1a1a2e", width=8, smooth=True, tags="game_layer")
-        self.canvas.create_line(path_line, fill="#16213e", width=5, smooth=True, tags="game_layer")
-        self.canvas.create_line(path_line, fill="#0f3460", width=2, smooth=True, tags="game_layer")
 
         for ball in self.chain:
             x, y = self._get_pos_from_dist(ball.visual_dist)
@@ -448,7 +480,7 @@ class ZumaGame:
         self.canvas.create_text(20, 20, text=f"УРОВЕНЬ {lvl['id']}", anchor="nw", fill="#e94560", font=("Segoe UI", 12, "bold"), tags="game_layer")
         self.canvas.create_text(20, 38, text=f"Очки: {self.score} / {lvl['target_score']}", anchor="nw", fill="#fff", font=("Segoe UI", 11), tags="game_layer")
 
-        # 🔒 Сложность отображается, но не является кнопкой (некликабельна)
+        # Сложность отображается, но не является кнопкой (некликабельна)
         diff_text = DIFFICULTY[self.difficulty]['label']
         self.canvas.create_rectangle(620, 10, 790, 45, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
         self.canvas.create_text(705, 27, text=f"Сложность: {diff_text}", fill="#888", font=("Segoe UI", 11, "bold"), tags="game_layer")
@@ -574,6 +606,7 @@ class ZumaGame:
         elif self.state == "levels":
             if 280 <= x <= 520 and 500 <= y <= 550:
                 self.state = "menu"
+                self._setup_menu_background()
                 return True
             for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
                 if x1 <= x <= x2 and y1 <= y <= y2:
@@ -583,6 +616,7 @@ class ZumaGame:
         elif self.state == "rules":
             if 280 <= x <= 520 and 500 <= y <= 550:
                 self.state = "menu"
+                self._setup_menu_background()
                 return True
         elif self.state == "paused":
             for key, (x1, y1, x2, y2, text) in self.pause_buttons.items():
@@ -593,6 +627,7 @@ class ZumaGame:
                         self.state = "menu"
                         self.score = 0
                         self.current_level_idx = 0
+                        self._setup_menu_background()
                     return True
         return False
 
@@ -649,6 +684,7 @@ class ZumaGame:
                 self.score = 0
                 self.current_level_idx = 0
                 self._apply_difficulty()
+                self._setup_menu_background()
 
     def _start_game(self):
         self.state = "playing"
