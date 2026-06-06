@@ -194,6 +194,65 @@ class ZumaGame:
         self._draw()
         self.root.after(16, self._tick)
 
+    def _setup_background(self):
+        self.canvas.delete("bg_layer")
+        self.canvas.delete("bg_ambient")
+        self.bg_particles = []
+
+        theme = LEVEL_THEMES[self.current_level_idx % len(LEVEL_THEMES)]
+        self.current_theme = theme
+
+        self.canvas.create_rectangle(0, 0, 800, 600, fill=theme["base"], tags="bg_layer")
+
+        for r in range(400, 50, -20):
+            br, bg, bb = self._hex_to_rgb(theme["base"])
+            dark = f"#{max(0,br-15):02x}{max(0,bg-15):02x}{max(0,bb-15):02x}"
+            self.canvas.create_oval(400-r, 300-r, 400+r, 300+r, outline=dark, width=4, tags="bg_layer")
+
+        if theme["style"] == "stars":
+            for _ in range(20):
+                x, y = random.uniform(0, 800), random.uniform(0, 600)
+                self.canvas.create_line(x-4, y, x+4, y, fill=theme["accent"], width=1, tags="bg_layer")
+        elif theme["style"] == "spores":
+            for _ in range(12):
+                x, y = random.uniform(0, 800), random.uniform(0, 600)
+                self.canvas.create_polygon(x-6,y-6, x+6,y, x-6,y+6, fill=theme["accent"], tags="bg_layer")
+
+        r, g, b = self._hex_to_rgb(theme["accent"])
+        dim_color = f"#{r // 5:02x}{g // 5:02x}{b // 5:02x}"
+
+        for _ in range(theme["particles"]):
+            x = random.uniform(0, 800)
+            y = random.uniform(0, 600)
+            size = random.uniform(1, 3.5)
+            vx = random.uniform(-0.15, 0.15)
+            vy = random.uniform(-0.2, -0.05) if theme["style"] != "embers" else random.uniform(-0.3, -0.1)
+
+            oid = self.canvas.create_oval(x - size, y - size, x + size, y + size, fill=dim_color, outline="", tags="bg_ambient")
+            self.bg_particles.append({"id": oid, "x": x, "y": y, "vx": vx, "vy": vy, "size": size})
+
+    def _update_background(self):
+        if not self.bg_particles: return
+        for p in self.bg_particles:
+            p["x"] += p["vx"]
+            p["y"] += p["vy"]
+            if p["y"] < -10: p["y"] = 610
+            if p["y"] > 610: p["y"] = -10
+            if p["x"] < -10: p["x"] = 810
+            if p["x"] > 810: p["x"] = -10
+
+            self.canvas.coords(p["id"], p["x"] - p["size"], p["y"] - p["size"], p["x"] + p["size"], p["y"] + p["size"])
+
+    def _update_particles(self):
+        for p in self.particles[:]:
+            p.x += p.vx
+            p.y += p.vy
+            p.life -= p.decay
+            p.vx *= 0.98
+            p.vy *= 0.98
+            if p.life <= 0:
+                self.particles.remove(p)
+                
     def _spawn_explosion(self, x, y, color, count=15):
         for _ in range(count):
             self.particles.append(Particle(x, y, color))
