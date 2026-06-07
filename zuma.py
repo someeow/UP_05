@@ -158,6 +158,11 @@ class ZumaGame:
             self.path_cum_dist.append(self.path_cum_dist[-1] + math.hypot(dx, dy))
         self.path_total_len = self.path_cum_dist[-1]
 
+    # увеличивает скорость цепочки на 20% за каждый уровень
+    # базовая * (1 + номер уровня * 0.2)
+    def _update_speed_for_level(self):
+        self.speed = min(BASE_CHAIN_SPEED * (1 + self.current_level_idx * 0.2), 1.5) # максимум 1.5
+
     # по расстоянию вдоль пути вычисляет координаты
     def _get_pos_from_dist(self, dist):
         if dist <= 0: return self.path_pts[0]
@@ -376,6 +381,7 @@ class ZumaGame:
                     self.state = "victory"
                     return
                 self.current_level_idx += 1
+                self._update_speed_for_level()
                 self.state = "level_complete"
                 self._generate_path()
                 self._setup_background()
@@ -735,6 +741,7 @@ class ZumaGame:
 
     def _start_game(self):
         self.state = "playing"
+        self._update_speed_for_level()
         # 1 уровень = 4 цвета, 2 = 5, 3 = 6, 4 = 7
         colors_count = min(4 + self.current_level_idx, 7)
         self.colors_pool = COLORS[:colors_count]
