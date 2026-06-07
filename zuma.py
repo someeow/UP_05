@@ -1,29 +1,19 @@
 import tkinter as tk # графическая библиотека
 import math
 import random
-import bisect #
+import bisect # для двоичного поиска
 import sys # для корректного завершения программы
 
 # 🎮 КОНФИГУРАЦИЯ
-
-# словарь сложности настроек
-# speed_mult - множитель скорости шариков
-# max_colors - количество цветов на уровне
-DIFFICULTY = {
-    "easy": {"speed_mult": 0.7, "max_colors": 4, "label": "Easy"},
-    "medium": {"speed_mult": 1.0, "max_colors": 5, "label": "Medium"},
-    "hard": {"speed_mult": 1.4, "max_colors": 6, "label": "Hard"}
-}
-
 # настройка уровней
 # target_score - очки для прохождения
 # chain_length - начальная длина цепочки
 # rotations - витки спирали
 LEVELS = [
-    {"id": 1, "target_score": 4000, "chain_length": 25, "rotations": 2.0},
-    {"id": 2, "target_score": 9000, "chain_length": 35, "rotations": 2.5},
-    {"id": 3, "target_score": 16000, "chain_length": 50, "rotations": 3.0},
-    {"id": 4, "target_score": 25000, "chain_length": 65, "rotations": 3.5},
+    {"id": 1, "target_score": 2000, "chain_length": 25, "rotations": 2.0},
+    {"id": 2, "target_score": 4000, "chain_length": 35, "rotations": 2.5},
+    {"id": 3, "target_score": 10000, "chain_length": 50, "rotations": 3.0},
+    {"id": 4, "target_score": 16000, "chain_length": 65, "rotations": 3.5},
 ]
 
 # Темы уровней определяет: цвет фона, подсветки, количество фоновых частиц, тип эффектов
@@ -68,21 +58,27 @@ class ZumaGame:
     def __init__(self):
         self.root = tk.Tk() # создает окно
         self.root.title("Zuma")
-        self.root.geometry("800x600")
+        window_width = 800
+        window_height = 600
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.root.resizable(False, False)
         self.root.configure(bg="#008080") # исходный цвет меню
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         # холст для рисования
         self.canvas = tk.Canvas(self.root, width=800, height=600, bg="#008080", highlightthickness=0)
+        self.canvas.focus_set()
         self.canvas.pack(fill="both", expand=True)
         # привязка событий
         self.canvas.bind("<Motion>", self.on_mouse_move) # движения мыши
         self.canvas.bind("<Button-1>", self.on_click) # ЛКМ
-        self.root.bind("<Key>", self.on_key) # клавиатура
+        self.root.bind_all("<Key>", self.on_key) # клавиатура
 
         #состояния
         self.state = "menu"
-        self.difficulty = "medium"
         self.current_level_idx = 0
         self.score = 0
         self.chain = []
@@ -118,20 +114,25 @@ class ZumaGame:
 
          # Кнопки паузы
         self.pause_buttons = {
-            "resume": (280, 260, 520, 310, "Продолжить"),
-            "menu": (280, 330, 520, 380, "В главное меню")
+            "resume": (280, 295, 520, 345, "Продолжить"),
         }
 
-        self._apply_difficulty()
+        self.game_buttons = {
+            "menu": (620, 10, 790, 45, "Меню")
+        }
+
+        self.start_choice_buttons = {
+            "back": (15, 20, 125, 70, "Назад"),
+            "yes": (260, 340, 360, 390, "Да"),
+            "no": (440, 340, 540, 390, "Нет")
+        }
+
+        self.speed = BASE_CHAIN_SPEED
+        self.colors_pool = COLORS.copy()
         self._generate_path() # создает спираль
         self._setup_menu_background()
         self._start_loop()
         self.root.mainloop()
-
-    def _apply_difficulty(self):
-        cfg = DIFFICULTY[self.difficulty]
-        self.speed = BASE_CHAIN_SPEED * cfg["speed_mult"]
-        self.colors_pool = COLORS[:cfg["max_colors"]]
 
     def _generate_path(self):
         if self.current_level_idx >= len(LEVELS):
@@ -192,12 +193,11 @@ class ZumaGame:
         self._tick()
 
     # игровой цикл
-    # вызывает каждые:
     def _tick(self):
         # Если пауза - только рисуем, не обновляем физику
         if self.state == "paused":
             self._draw()
-            self.root.after(16, self._tick) # 16 мс примерно 60FPS
+            self.root.after(16, self._tick)
             return
 
         if self.state == "playing":
@@ -258,7 +258,7 @@ class ZumaGame:
         self.canvas.delete("bg_layer")
         self.canvas.delete("bg_ambient")
 
-        self.canvas.create_rectangle(0, 0, 800, 600, fill="#008080", outline="", tags="bg_layer")
+        self._draw_gradient("#0f172a", "#005f73")
         self.bg_particles.clear()
 
     def _update_background(self):
@@ -372,13 +372,13 @@ class ZumaGame:
         if not self.chain:
             lvl = LEVELS[self.current_level_idx]
             if self.score >= lvl["target_score"]:
-                self.current_level_idx += 1
-                if self.current_level_idx >= len(LEVELS):
+                if self.current_level_idx == len(LEVELS) - 1:
                     self.state = "victory"
-                else:
-                    self.state = "level_complete"
-                    self._generate_path()
-                    self._setup_background()
+                    return
+                self.current_level_idx += 1
+                self.state = "level_complete"
+                self._generate_path()
+                self._setup_background()
             else:
                 self._spawn_wave()
 
@@ -390,6 +390,33 @@ class ZumaGame:
     def _hex_to_rgb(self, hex_color):
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    def _draw_gradient(self, color1, color2):
+        r1, g1, b1 = self._hex_to_rgb(color1)
+        r2, g2, b2 = self._hex_to_rgb(color2)
+        for i in range(600):
+            ratio = i / 600
+            r = int(r1 + (r2 - r1) * ratio)
+            g = int(g1 + (g2 - g1) * ratio)
+            b = int(b1 + (b2 - b1) * ratio)
+            color = f"#{r:02x}{g:02x}{b:02x}"
+            self.canvas.create_line(0, i, 800, i, fill=color, tags="bg_layer")
+
+    # текст с обводкой для заголовков
+    def _draw_outlined_text(self, x, y, text, fill_color, font, tags="menu_layer"):
+        # черная обводка
+        for dx, dy in [(-3, -3), (-3, 0), (-3, 3), (0, -3), (0, 3), (3, -3),  (3, 0),  (3, 3)]:
+            self.canvas.create_text(x + dx, y + dy, text=text, fill="black", font=font, tags=tags)
+        # основной текст
+        self.canvas.create_text( x, y, text=text, fill=fill_color, font=font, tags=tags)
+
+    # текст с обводкой для кнопок
+    def _draw_button_text(self, x, y, text, font, tags="menu_layer"):
+        # белая обводка
+        for dx, dy in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            self.canvas.create_text(x + dx, y + dy, text=text, fill="white", font=font, tags=tags)
+        # основной темно-синий
+        self.canvas.create_text(x, y, text=text, fill="#0f172a", font=font, tags=tags)
 
     def _draw_gradient_ball(self, x, y, radius, color, outline=True, tags="game_layer"):
         r, g, b = self._hex_to_rgb(color)
@@ -434,9 +461,9 @@ class ZumaGame:
             )
 
     def _draw_button(self, x1, y1, x2, y2, text, hover=False, tags="menu_layer"):
-        fill_color = "#f0f0f0" if hover else "#ffffff"
-        self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="#000000", width=2, tags=tags)
-        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=text, fill="#000000", font=("Segoe UI", 14), tags=tags)
+        fill_color = "#6BB4D4" if hover else "#5FA8C7"
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="#0f172a", width=4, tags=tags)
+        self._draw_button_text((x1 + x2) // 2, (y1 + y2) // 2, text, ("Segoe UI", 14), tags)
 
     def _draw(self):
         self.canvas.delete("game_layer")
@@ -445,6 +472,9 @@ class ZumaGame:
 
         if self.state == "menu":
             self._draw_menu()
+            return
+        if self.state == "start_choice":
+            self._draw_start_choice()
             return
         if self.state =="levels":
             self._draw_levels_menu()
@@ -477,13 +507,12 @@ class ZumaGame:
 
         lvl = LEVELS[self.current_level_idx]
         self.canvas.create_rectangle(10, 10, 280, 55, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
-        self.canvas.create_text(20, 20, text=f"УРОВЕНЬ {lvl['id']}", anchor="nw", fill="#e94560", font=("Segoe UI", 12, "bold"), tags="game_layer")
-        self.canvas.create_text(20, 38, text=f"Очки: {self.score} / {lvl['target_score']}", anchor="nw", fill="#fff", font=("Segoe UI", 11), tags="game_layer")
+        self._draw_outlined_text(90, 22, f"УРОВЕНЬ {lvl['id']}", "#bdefff", ("Segoe UI", 14, "bold"), "game_layer")
+        self.canvas.create_text(40, 33, text=f"Очки: {self.score} / {lvl['target_score']}", anchor="nw", fill="#ffffff", font=("Segoe UI", 11), tags="game_layer")
 
-        # Сложность отображается, но не является кнопкой (некликабельна)
-        diff_text = DIFFICULTY[self.difficulty]['label']
-        self.canvas.create_rectangle(620, 10, 790, 45, fill="#1a1a2e", outline="#0f3460", width=2, tags="game_layer")
-        self.canvas.create_text(705, 27, text=f"Сложность: {diff_text}", fill="#888", font=("Segoe UI", 11, "bold"), tags="game_layer")
+        x1, y1, x2, y2, text = self.game_buttons["menu"]
+        hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+        self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="game_layer")
 
         if self.state == "level_complete":
             self._draw_overlay(f"УРОВЕНЬ {self.current_level_idx} ПРОЙДЕН!", "#00d9ff", "Нажмите ПРОБЕЛ для следующего уровня")
@@ -499,12 +528,11 @@ class ZumaGame:
         self.glow_intensity *= 0.95
 
     def _draw_pause(self):
-        """Отрисовка меню паузы"""
         # Затемнение фона
         self.canvas.create_rectangle(0, 0, 800, 600, fill="#000000", stipple="gray50", tags="pause_layer")
 
         # Заголовок
-        self.canvas.create_text(400, 180, text="ПАУЗА", fill="#ffffff", font=("Segoe UI", 48, "bold"), tags="pause_layer")
+        self._draw_outlined_text(400, 180, "ПАУЗА", "#bdefff", ("Segoe UI", 48, "bold"))
 
         # Кнопки
         for key, (x1, y1, x2, y2, text) in self.pause_buttons.items():
@@ -512,30 +540,28 @@ class ZumaGame:
             self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="pause_layer")
 
         # Подсказка
-        self.canvas.create_text(400, 420, text="Нажмите 'P' чтобы продолжить", fill="#888", font=("Segoe UI", 12), tags="pause_layer")
+        self.canvas.create_text(400, 420, text="Нажмите 'P' или кнопку 'Продолжить'", fill="#888", font=("Segoe UI", 12), tags="pause_layer")
 
     def _draw_menu(self):
-        self.canvas.create_text(400, 100, text="ZUMA", fill="#000000", font=("Segoe UI", 48, "bold"), tags="menu_layer")
-        self.canvas.create_text(400, 170, text="Главное меню:", fill="#000000", font=("Segoe UI", 18), tags="menu_layer")
+        self._draw_outlined_text(400, 100, "ZUMA", "#bdefff", ("Segoe UI", 48, "bold"))
+        self.canvas.create_text(400, 170, text="Главное меню:", fill="#ffffff", font=("Segoe UI", 18), tags="menu_layer")
 
         for key, (x1, y1, x2, y2, text) in self.menu_buttons.items():
             hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
             self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
 
     def _draw_levels_menu(self):
-        self.canvas.create_text(400, 80, text="ВЫБОР УРОВНЯ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
-        # Показываем текущую сложность (статично)
-        self.canvas.create_text(400, 130, text=f"Сложность: {DIFFICULTY[self.difficulty]['label']}", fill="#666666", font=("Segoe UI", 14), tags="menu_layer")
+        self._draw_outlined_text(400, 80, "ВЫБОР УРОВНЯ", "#bdefff", ("Segoe UI", 32, "bold"))
 
         for key, (x1, y1, x2, y2, text) in self.level_buttons.items():
             hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
             self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
 
-        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
-        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
+        hover = 280 <= self.mouse_x <= 520 and 500 <= self.mouse_y <= 550
+        self._draw_button(280, 500, 520, 550, "Назад", hover=hover, tags="menu_layer")
 
     def _draw_rules(self):
-        self.canvas.create_text(400, 60, text="ПРАВИЛА ИГРЫ", fill="#000000", font=("Segoe UI", 32, "bold"), tags="menu_layer")
+        self._draw_outlined_text(400, 60, "ПРАВИЛА ИГРЫ", "#bdefff", ("Segoe UI", 32, "bold"))
 
         rules_text = """
         1. Стреляйте цветными шарами из лягушки
@@ -555,10 +581,18 @@ class ZumaGame:
         • R - Рестарт
         """
 
-        self.canvas.create_text(400, 280, text=rules_text, fill="#000000", font=("Segoe UI", 12), tags="menu_layer", justify="center")
+        self.canvas.create_rectangle(120, 130, 680, 470, fill="#bdefff", outline="#000000", width=2, tags="menu_layer")
+        self.canvas.create_text(390, 300, text=rules_text, fill="#0f172a", font=("Segoe UI", 12), tags="menu_layer", justify="center")
 
-        self.canvas.create_rectangle(280, 500, 520, 550, fill="#ffffff", outline="#000000", width=2, tags="menu_layer")
-        self.canvas.create_text(400, 525, text="Назад", fill="#000000", font=("Segoe UI", 14), tags="menu_layer")
+        hover = 280 <= self.mouse_x <= 520 and 500 <= self.mouse_y <= 550
+        self._draw_button(280, 500, 520, 550, "Назад", hover=hover, tags="menu_layer")
+
+    def _draw_start_choice(self):
+        self._draw_outlined_text(405, 265, "Запустить начальный уровень?", "#bdefff", ("Segoe UI", 25))
+
+        for key, (x1, y1, x2, y2, text) in self.start_choice_buttons.items():
+            hover = x1 <= self.mouse_x <= x2 and y1 <= self.mouse_y <= y2
+            self._draw_button(x1, y1, x2, y2, text, hover=hover, tags="menu_layer")
 
     def _draw_frog(self):
         fx, fy = FROG_POS
@@ -587,7 +621,7 @@ class ZumaGame:
 
     def _draw_overlay(self, title, color, sub):
         self.canvas.create_rectangle(0, 0, 800, 600, fill="#000000")
-        self.canvas.create_text(400, 250, text=title, fill=color, font=("Segoe UI", 42, "bold"))
+        self._draw_outlined_text(400, 250, title, "#bdefff", ("Segoe UI", 42, "bold"))
         self.canvas.create_text(400, 320, text=sub, fill="#ccc", font=("Segoe UI", 18))
 
     def _check_button_click(self, x, y):
@@ -595,7 +629,7 @@ class ZumaGame:
             for key, (x1, y1, x2, y2, text) in self.menu_buttons.items():
                 if x1 <= x <= x2 and y1 <= y <= y2:
                     if key == "play":
-                        self._start_game()
+                        self.state = "start_choice"
                     elif key == "levels":
                         self.state = "levels"
                     elif key == "rules":
@@ -603,6 +637,17 @@ class ZumaGame:
                     elif key == "exit":
                         self.on_close()
                     return True
+        elif self.state == "start_choice":
+            if 15<= x <= 125 and 20 <= y <= 70:
+                self.state = "menu"
+                return True
+            if 260 <= x <= 360 and 340 <=y <= 390:
+                self.current_level_idx = 0
+                self._start_game()
+                return True
+            if 440 <= x <= 540 and 340 <= y <= 390:
+                self.state = "levels"
+                return True
         elif self.state == "levels":
             if 280 <= x <= 520 and 500 <= y <= 550:
                 self.state = "menu"
@@ -623,12 +668,15 @@ class ZumaGame:
                 if x1 <= x <= x2 and y1 <= y <= y2:
                     if key == "resume":
                         self.state = "playing"
-                    elif key == "menu":
-                        self.state = "menu"
-                        self.score = 0
-                        self.current_level_idx = 0
-                        self._setup_menu_background()
                     return True
+        elif self.state == "playing":
+            x1, y1, x2, y2, text = self.game_buttons["menu"]
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                self.state = "menu"
+                self.score = 0
+                self.current_level_idx = 0
+                self._setup_menu_background()
+                return True
         return False
 
     def on_mouse_move(self, event):
@@ -644,7 +692,7 @@ class ZumaGame:
     def on_click(self, event):
         x, y = event.x, event.y
 
-        if self.state in ("menu", "levels", "rules", "paused"):
+        if self.state in ("menu", "start_choice", "levels", "rules", "paused", "playing"):
             if self._check_button_click(x, y):
                 return
 
@@ -683,11 +731,13 @@ class ZumaGame:
                 self.state = "menu"
                 self.score = 0
                 self.current_level_idx = 0
-                self._apply_difficulty()
                 self._setup_menu_background()
 
     def _start_game(self):
         self.state = "playing"
+        # 1 уровень = 4 цвета, 2 = 5, 3 = 6, 4 = 7
+        colors_count = min(4 + self.current_level_idx, 7)
+        self.colors_pool = COLORS[:colors_count]
         self._generate_path()
         self._spawn_chain()
         self._setup_background()
@@ -698,6 +748,11 @@ class ZumaGame:
     def _reset_game(self):
         self.score = 0
         self.current_level_idx = 0
+
+        self.chain.clear()
+        self.particles.clear()
+        self.projectile = None
+
         self._start_game()
 
     def on_close(self):
